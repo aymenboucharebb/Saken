@@ -65,11 +65,14 @@ RUN composer dump-autoload --optimize \
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-saken.ini
+COPY docker/zz-saken-fpm.conf /usr/local/etc/php-fpm.d/zz-saken-fpm.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && rm -f /etc/nginx/sites-enabled/default \
     && ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default \
-    && sed -i 's/listen = 127.0.0.1:9000/listen = 127.0.0.1:9000/' /usr/local/etc/php-fpm.d/www.conf
+    && sed -i 's/^;*\s*clear_env\s*=.*/clear_env = no/' /usr/local/etc/php-fpm.d/www.conf \
+    && grep -q '^clear_env' /usr/local/etc/php-fpm.d/www.conf \
+        || echo 'clear_env = no' >> /usr/local/etc/php-fpm.d/www.conf
 
 ENV PORT=8080
 EXPOSE 8080

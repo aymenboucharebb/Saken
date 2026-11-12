@@ -90,13 +90,21 @@ flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com/api
 **Fait :**
 - Injecte `PORT` dans Nginx
 - Crée les dossiers `storage` / `bootstrap/cache` + permissions
-- `config:cache`, `route:cache`, `view:cache`
+- Vérifie que `APP_KEY` est présent et valide (32 octets décodés)
+- `config:clear` puis `config:cache` / `route:cache` / `view:cache` (**échoue le boot si cache KO**)
+- PHP-FPM avec `clear_env = no` (les variables Render sont visibles par les workers)
 - Démarre php-fpm + nginx
 
 **Ne fait pas :**
 - `migrate`
 - `db:seed`
 - `storage:link` (inutile pour les reçus privés)
+
+### Erreur `Unsupported cipher or incorrect key length`
+
+1. `APP_KEY` doit être une clé Laravel valide (`php artisan key:generate --show`), sans guillemets.
+2. Évitez si possible le caractère `+` dans la clé (régénérez jusqu’à en avoir une sans `+`).
+3. Après changement d’env : **Manual Deploy** (rebuild/restart obligatoire).
 
 ## Reçus privés — comportement
 
