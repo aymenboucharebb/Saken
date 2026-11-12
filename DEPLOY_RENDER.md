@@ -34,7 +34,7 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 |----------|-----------------|
 | `APP_NAME` | `Saken` |
 | `APP_ENV` | `production` |
-| `APP_KEY` | générée (`php artisan key:generate --show`) |
+| `APP_KEY` | `php artisan key:generate --show` → longueur **51** (vérifier `$k.Length` en PowerShell) |
 | `APP_DEBUG` | **`false`** |
 | `APP_URL` | `https://<service>.onrender.com` |
 | `APP_LOCALE` | `fr` |
@@ -100,11 +100,23 @@ flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com/api
 - `db:seed`
 - `storage:link` (inutile pour les reçus privés)
 
-### Erreur `Unsupported cipher or incorrect key length`
+### Erreur `Unsupported cipher or incorrect key length` / `MissingAppKeyException`
 
-1. `APP_KEY` doit être une clé Laravel valide (`php artisan key:generate --show`), sans guillemets.
-2. Évitez si possible le caractère `+` dans la clé (régénérez jusqu’à en avoir une sans `+`).
-3. Après changement d’env : **Manual Deploy** (rebuild/restart obligatoire).
+1. Générez une clé : `php artisan key:generate --show`
+2. **Vérifiez la longueur avant de coller sur Render** (obligatoire) :
+
+```powershell
+$k = "base64:...."   # collez la clé générée entre les guillemets
+$k.Length            # DOIT afficher 51 — jamais 52
+```
+
+   - Longueur attendue : **51** (`base64:` + 44 caractères)
+   - Si ce n’est pas `51`, régénérez — ne collez pas une clé à 52 caractères
+3. Collez **exactement** la valeur dans Render → Environment → `APP_KEY` (sans guillemets, sans espace).
+4. Évitez si possible le caractère `+` (régénérez jusqu’à en avoir une sans `+`).
+5. Après changement d’env : **Manual Deploy** (restart obligatoire).
+6. Les logs de boot doivent montrer `APP_KEY OK` **et** `Cached config app.key OK`.  
+   Si vous voyez `ERROR: APP_KEY invalid` / `string_len=52`, le deploy doit **échouer** (plus de faux positif).
 
 ## Reçus privés — comportement
 
