@@ -36,7 +36,7 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 | `APP_ENV` | `production` |
 | `APP_KEY` | `php artisan key:generate --show` → longueur **51** (vérifier `$k.Length` en PowerShell) |
 | `APP_DEBUG` | **`false`** |
-| `APP_URL` | `https://<service>.onrender.com` |
+| `APP_URL` | `https://<service>.onrender.com` (https obligatoire — sinon CSS/JS bloqués) |
 | `APP_LOCALE` | `fr` |
 | `LOG_LEVEL` | `error` |
 | `DB_CONNECTION` | `pgsql` |
@@ -134,6 +134,7 @@ Les anciens fichiers encore sur le disque `public` restent lisibles en fallback 
 
 - [ ] `APP_DEBUG=false`
 - [ ] `/up` répond 200
+- [ ] Page `/login` charge le CSS (pas de logo Laravel géant) — vérifier dans le HTML que les `/build/assets/*` sont en `https://`
 - [ ] Login CMS OK
 - [ ] Login API OK
 - [ ] Upload reçu → visible uniquement connecté (403/401 sans token)
