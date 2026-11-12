@@ -1,0 +1,122 @@
+# Déploiement Saken sur Render (Docker + PostgreSQL)
+
+Ce guide prépare un **premier déploiement temporaire**. Aucune migration ni seeder n’est exécuté automatiquement au démarrage du conteneur.
+
+## Compatibilité PostgreSQL
+
+Les migrations Eloquent du projet sont **compatibles PostgreSQL**.
+
+- Types standards (`string`, `text`, `decimal`, `foreignId`, `timestamps`) : OK.
+- `->after('date')` sur `receipt_path` : **ignoré** par le driver PostgreSQL (sans impact schéma).
+- Pas de syntaxe SQLite-only dans les migrations applicatives.
+- Extensions PHP requises dans l’image : `pdo_pgsql`, `pgsql`.
+
+La base **SQLite locale** (`database/database.sqlite`) n’est pas utilisée sur Render et n’est pas modifiée par ce déploiement.
+
+## Architecture image
+
+| Élément | Détail |
+|--------|--------|
+| Runtime | PHP **8.3-FPM** + **Nginx** + Supervisor |
+| Build | Multi-stage : Node 22 (Vite) → PHP |
+| Document root | `/var/www/html/public` uniquement |
+| Port | Variable Render `PORT` (défaut 8080) |
+| Reçus | Disque **privé** `storage/app/private/receipts/payments` |
+| Accès reçus | Routes authentifiées (pas d’URL publique `/storage/...`) |
+
+Fichiers : `Dockerfile`, `docker/nginx.conf`, `docker/entrypoint.sh`, `docker/supervisord.conf`, `docker/php.ini`, `.dockerignore`.
+
+## Variables d’environnement Render
+
+Renseigner dans le dashboard Render (ne jamais committer de secrets) :
+
+| Variable | Valeur attendue |
+|----------|-----------------|
+| `APP_NAME` | `Saken` |
+| `APP_ENV` | `production` |
+| `APP_KEY` | générée (`php artisan key:generate --show`) |
+| `APP_DEBUG` | **`false`** |
+| `APP_URL` | `https://<service>.onrender.com` |
+| `APP_LOCALE` | `fr` |
+| `LOG_LEVEL` | `error` |
+| `DB_CONNECTION` | `pgsql` |
+| `DB_HOST` | hôte PostgreSQL Render |
+| `DB_PORT` | `5432` |
+| `DB_DATABASE` | nom de la base |
+| `DB_USERNAME` | utilisateur |
+| `DB_PASSWORD` | mot de passe |
+| `DATABASE_URL` | optionnel (URL interne Render) |
+| `SESSION_DRIVER` | `database` |
+| `CACHE_STORE` | `database` |
+| `QUEUE_CONNECTION` | `database` ou `sync` |
+| `FILESYSTEM_DISK` | `local` |
+
+## Étapes manuelles restantes sur Render
+
+1. Créer un **PostgreSQL** managé Render et noter les credentials internes.
+2. Créer un **Web Service** type **Docker** pointant vers ce dépôt (racine Laravel).
+3. Attacher un **Persistent Disk** monté sur `/var/www/html/storage` (sinon les reçus disparaissent au redeploy).
+4. Configurer les variables d’environnement ci-dessus (`APP_DEBUG=false`).
+5. Déployer l’image (build Docker automatique).
+6. Ouvrir un **Shell** Render et exécuter **manuellement** (une fois) :
+
+```bash
+php artisan migrate --force
+# Ne PAS lancer db:seed en production avec les comptes de démo.
+# Créer un admin réel, ex. :
+# php artisan tinker
+# puis User::create([...]) avec un mot de passe fort.
+```
+
+7. Vérifier :
+
+```bash
+curl -sS https://<service>.onrender.com/up
+curl -sS -X POST https://<service>.onrender.com/api/login \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"...","password":"...","device_name":"test"}'
+```
+
+8. CMS : ouvrir `https://<service>.onrender.com/login`.
+9. Flutter (plus tard, hors APK pour l’instant) :
+
+```bash
+flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com/api
+```
+
+## Ce que le conteneur fait / ne fait pas au démarrage
+
+**Fait :**
+- Injecte `PORT` dans Nginx
+- Crée les dossiers `storage` / `bootstrap/cache` + permissions
+- `config:cache`, `route:cache`, `view:cache`
+- Démarre php-fpm + nginx
+
+**Ne fait pas :**
+- `migrate`
+- `db:seed`
+- `storage:link` (inutile pour les reçus privés)
+
+## Reçus privés — comportement
+
+| Avant | Après |
+|-------|--------|
+| `Storage::disk('public')` | `Storage::disk('local')` (`storage/app/private/...`) |
+| URL publique `/storage/...` | `GET /api/payments/{id}/receipt` (Sanctum) |
+| | `GET /payments/{id}/receipt` (session admin) |
+
+Validation inchangée : image JPEG/PNG/WebP, max 5 Mo (`StorePaymentRequest` + contrôles `PaymentService`).
+
+Les anciens fichiers encore sur le disque `public` restent lisibles en fallback temporaire.
+
+## Checklist post-déploiement
+
+- [ ] `APP_DEBUG=false`
+- [ ] `/up` répond 200
+- [ ] Login CMS OK
+- [ ] Login API OK
+- [ ] Upload reçu → visible uniquement connecté (403/401 sans token)
+- [ ] Persistent Disk monté
+- [ ] Aucun seeder démo exécuté
+- [ ] Flutter pointe vers l’URL HTTPS via `--dart-define=API_BASE_URL=...`

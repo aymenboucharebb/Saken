@@ -1,0 +1,24 @@
+﻿# Contexte du Projet Mobile : Saken (App Résident)
+
+## 1. Description Générale
+Application mobile Flutter destinée aux résidents d'un immeuble. Elle permet de consulter les cotisations (en cours et historiques), de voir le reste à payer, et de suivre ses paiements. Elle consomme une API REST Laravel protégée par Sanctum.
+
+## 2. Stack Technique et Packages Recommandés
+*   **Gestion d'état :** `flutter_riverpod` (Architecture MVVM recommandée).
+*   **Client HTTP :** `dio` (pour la gestion facile des tokens et des interceptors).
+*   **Navigation :** `go_router` (pour un routage déclaratif).
+*   **Stockage local :** `flutter_secure_storage` (pour stocker le token Sanctum en toute sécurité).
+
+## 3. Architecture du Code (MVVM structuré)
+Respecter une séparation claire des dossiers dans `lib/` :
+*   `models/` : Classes de données avec `freezed` et `json_serializable` (ou simples classes Dart avec `fromJson`).
+*   `services/` ou `repositories/` : Classes gérant les appels API via Dio.
+*   `providers/` : Les state notifiers et providers Riverpod pour lier la logique à l'UI.
+*   `ui/` ou `views/` : Les écrans et widgets (UI pure).
+*   `core/` : Constantes, configuration réseau, interceptors Dio, thèmes.
+
+## 4. Logique d'Authentification (Laravel Sanctum)
+1. Le login retourne un token d'accès.
+2. Ce token doit être stocké de manière sécurisée.
+3. Un Interceptor Dio doit injecter automatiquement le header `Authorization: Bearer {token}` dans toutes les requêtes API suivantes.
+4. Si l'API retourne une erreur 401 (Non autorisé), l'app doit déconnecter l'utilisateur et le renvoyer vers l'écran de Login.
