@@ -25,22 +25,33 @@ if [ -z "${APP_KEY:-}" ]; then
   exit 1
 fi
 
-php -r '
+# Normalize APP_KEY for Render/env quirks: trim, strip quotes, restore '+' mangled as spaces.
+export APP_KEY="$(php -r '
 $key = getenv("APP_KEY") ?: "";
+$key = trim($key);
+$key = trim($key, "\"'\''");
 if (str_starts_with($key, "base64:")) {
-    $decoded = base64_decode(substr($key, 7), true);
-} else {
-    $decoded = $key;
+    $payload = substr($key, 7);
+    // Some hosts turn "+" into " " inside env values.
+    $payload = str_replace(" ", "+", $payload);
+    $key = "base64:" . $payload;
 }
+$decoded = str_starts_with($key, "base64:")
+    ? base64_decode(substr($key, 7), true)
+    : $key;
 if ($decoded === false || strlen($decoded) !== 32) {
-    fwrite(STDERR, "ERROR: APP_KEY has incorrect length for AES-256-CBC (need 32 bytes after decode).\n");
+    $preview = substr($key, 0, 12) . "...(len=" . strlen($key) . ")";
+    fwrite(STDERR, "ERROR: APP_KEY invalid for AES-256-CBC. Got {$preview}\n");
+    fwrite(STDERR, "Generate with: php artisan key:generate --show\n");
+    fwrite(STDERR, "Paste exactly, no quotes. Prefer a key without + if issues persist.\n");
     exit(1);
 }
-echo "APP_KEY OK (32 bytes).\n";
-'
+echo $key;
+')"
+
+echo "APP_KEY OK (32 bytes)."
 
 # Do NOT run migrations or seeders here (manual on Render).
-# Cache config with real env so FPM serves a valid baked config even if env were cleared.
 php artisan config:clear
 php artisan config:cache
 php artisan route:cache
