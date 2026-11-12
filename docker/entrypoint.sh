@@ -94,7 +94,9 @@ php artisan route:cache
 php artisan view:cache
 
 # Ensure the cached config actually contains a usable key (catches empty-key cache).
+# Must load Composer autoload first: cached config may reference package enums/classes (e.g. Scramble).
 php -r '
+require "vendor/autoload.php";
 $cfgFile = "bootstrap/cache/config.php";
 if (!is_file($cfgFile)) {
     fwrite(STDERR, "ERROR: bootstrap/cache/config.php missing after config:cache.\n");
