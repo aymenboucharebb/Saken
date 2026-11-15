@@ -50,9 +50,9 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 | `ADMIN_PASSWORD` | mot de passe admin (retirer après 1er login) |
 | `ADMIN_NAME` | optionnel (`Admin`) |
 | `SETUP_TOKEN` | secret pour `/api/setup/migrate` (retirer après setup) |
-| `SESSION_DRIVER` | `database` |
+| `SESSION_DRIVER` | `database` (**obligatoire** — ne pas laisser vide) |
 | `SESSION_SECURE_COOKIE` | `true` |
-| `SESSION_DOMAIN` | *(vide — ne pas mettre `null`)* |
+| `SESSION_DOMAIN` | *(laisser vide / supprimer la variable — ne pas mettre `null`)* |
 | `CACHE_STORE` | `database` |
 | `QUEUE_CONNECTION` | `database` ou `sync` |
 | `FILESYSTEM_DISK` | `local` |

@@ -10,7 +10,7 @@ class AppConfig {
   /// Défaut local (émulateur Android) : `10.0.2.2` → localhost machine hôte.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api',
+    defaultValue: 'https://saken-1-bc4z.onrender.com/api',
   );
 
   static const String tokenStorageKey = 'saken_auth_token';
