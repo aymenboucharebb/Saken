@@ -119,4 +119,36 @@ if ($decoded === false || strlen($decoded) !== 32) {
 echo "Cached config app.key OK.\n";
 '
 
+# Apply pending migrations (needed on free Render without Shell).
+# Safe to re-run: already-applied migrations are skipped. Never seeds demo data.
+echo "Running migrations..."
+php artisan migrate --force
+echo "Migrations OK."
+
+# Optional first admin (set ADMIN_EMAIL + ADMIN_PASSWORD on Render once, then remove password).
+if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
+  php -r '
+require "vendor/autoload.php";
+$app = require "bootstrap/app.php";
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$email = getenv("ADMIN_EMAIL") ?: "";
+$password = getenv("ADMIN_PASSWORD") ?: "";
+$name = getenv("ADMIN_NAME") ?: "Admin";
+if ($email === "" || $password === "") {
+    fwrite(STDERR, "ERROR: ADMIN_EMAIL/ADMIN_PASSWORD empty.\n");
+    exit(1);
+}
+$user = App\Models\User::query()->updateOrCreate(
+    ["email" => $email],
+    [
+        "name" => $name,
+        "password" => $password,
+        "role" => "admin",
+        "email_verified_at" => now(),
+    ],
+);
+echo "Admin ready: {$user->email}\n";
+'
+fi
+
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

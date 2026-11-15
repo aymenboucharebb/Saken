@@ -45,7 +45,10 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 | `DB_DATABASE` | nom de la base |
 | `DB_USERNAME` | utilisateur |
 | `DB_PASSWORD` | mot de passe |
-| `DATABASE_URL` | optionnel (URL interne Render) |
+| `DB_URL` | optionnel (Internal Database URL Render — Laravel lit `DB_URL`, pas `DATABASE_URL`) |
+| `ADMIN_EMAIL` | email admin (1er boot) |
+| `ADMIN_PASSWORD` | mot de passe admin (retirer après 1er login) |
+| `ADMIN_NAME` | optionnel (`Admin`) |
 | `SESSION_DRIVER` | `database` |
 | `CACHE_STORE` | `database` |
 | `QUEUE_CONNECTION` | `database` ou `sync` |
@@ -57,17 +60,13 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 2. Créer un **Web Service** type **Docker** pointant vers ce dépôt (racine Laravel).
 3. Attacher un **Persistent Disk** monté sur `/var/www/html/storage` (sinon les reçus disparaissent au redeploy).
 4. Configurer les variables d’environnement ci-dessus (`APP_DEBUG=false`).
-5. Déployer l’image (build Docker automatique).
-6. Ouvrir un **Shell** Render et exécuter **manuellement** (une fois) :
-
-```bash
-php artisan migrate --force
-# Ne PAS lancer db:seed en production avec les comptes de démo.
-# Créer un admin réel, ex. :
-# php artisan tinker
-# puis User::create([...]) avec un mot de passe fort.
-```
-
+5. (Optionnel mais recommandé pour le 1er login) ajouter :
+   - `ADMIN_EMAIL` = votre email admin
+   - `ADMIN_PASSWORD` = mot de passe fort
+   - `ADMIN_NAME` = `Admin` (optionnel)
+6. Déployer l’image (build Docker automatique).  
+   Au boot : `php artisan migrate --force` + création admin si `ADMIN_EMAIL`/`ADMIN_PASSWORD` sont définis.  
+   **Ne PAS** lancer `db:seed` (comptes démo). Après le 1er login réussi, retirez `ADMIN_PASSWORD` des env Render.
 7. Vérifier :
 
 ```bash
@@ -92,12 +91,13 @@ flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com/api
 - Crée les dossiers `storage` / `bootstrap/cache` + permissions
 - Vérifie que `APP_KEY` est présent et valide (32 octets décodés)
 - `config:clear` puis `config:cache` / `route:cache` / `view:cache` (**échoue le boot si cache KO**)
+- `php artisan migrate --force` (tables `users`, `sessions`, etc.)
+- Crée/maj un admin si `ADMIN_EMAIL` + `ADMIN_PASSWORD` sont définis
 - PHP-FPM avec `clear_env = no` (les variables Render sont visibles par les workers)
 - Démarre php-fpm + nginx
 
 **Ne fait pas :**
-- `migrate`
-- `db:seed`
+- `db:seed` (pas de comptes démo)
 - `storage:link` (inutile pour les reçus privés)
 
 ### Erreur `Unsupported cipher or incorrect key length` / `MissingAppKeyException`
