@@ -87,8 +87,73 @@ fi
 export APP_KEY="${NORMALIZED_APP_KEY}"
 echo "APP_KEY OK (32 bytes, string_len=${#APP_KEY})."
 
-# Do NOT run migrations or seeders here (manual on Render).
-php artisan config:clear
+# Prefer TLS when talking to managed Postgres (Render external / some internal paths).
+export DB_SSLMODE="${DB_SSLMODE:-prefer}"
+
+# Clear any stale caches before migrate so env() / config read live Render vars.
+php artisan config:clear || true
+php artisan route:clear || true
+php artisan view:clear || true
+
+# Wait for Postgres (cold start / private network DNS can lag a few seconds).
+echo "Waiting for database..."
+DB_READY=0
+for i in $(seq 1 30); do
+  if php artisan db:show --database=pgsql >/tmp/db-show.txt 2>/tmp/db-show.err; then
+    DB_READY=1
+    echo "Database reachable (attempt ${i})."
+    cat /tmp/db-show.txt || true
+    break
+  fi
+  echo "DB not ready yet (${i}/30)..."
+  cat /tmp/db-show.err || true
+  sleep 2
+done
+
+if [ "${DB_READY}" != "1" ]; then
+  echo "WARNING: database not reachable after retries — will still start the web server." >&2
+  echo "Call GET /api/setup/migrate?token=\$SETUP_TOKEN once DB is up." >&2
+fi
+
+# Apply pending migrations (no demo seed). Soft-fail so a migrate error does not
+# keep Render on an older instance forever — use /api/setup/migrate as fallback.
+echo "Running migrations..."
+if php artisan migrate --force; then
+  echo "Migrations OK."
+else
+  echo "WARNING: migrate failed — starting anyway. Use /api/setup/migrate?token=..." >&2
+fi
+
+# Optional first admin (set ADMIN_EMAIL + ADMIN_PASSWORD on Render once, then remove password).
+if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
+  php -r '
+require "vendor/autoload.php";
+$app = require "bootstrap/app.php";
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$email = getenv("ADMIN_EMAIL") ?: "";
+$password = getenv("ADMIN_PASSWORD") ?: "";
+$name = getenv("ADMIN_NAME") ?: "Admin";
+if ($email === "" || $password === "") {
+    fwrite(STDERR, "ERROR: ADMIN_EMAIL/ADMIN_PASSWORD empty.\n");
+    exit(1);
+}
+if (! Illuminate\Support\Facades\Schema::hasTable("users")) {
+    fwrite(STDERR, "WARNING: users table missing — skip admin bootstrap.\n");
+    exit(0);
+}
+$user = App\Models\User::query()->updateOrCreate(
+    ["email" => $email],
+    [
+        "name" => $name,
+        "password" => $password,
+        "role" => "admin",
+        "email_verified_at" => now(),
+    ],
+);
+echo "Admin ready: {$user->email}\n";
+' || echo "WARNING: admin bootstrap failed." >&2
+fi
+
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
@@ -118,37 +183,5 @@ if ($decoded === false || strlen($decoded) !== 32) {
 }
 echo "Cached config app.key OK.\n";
 '
-
-# Apply pending migrations (needed on free Render without Shell).
-# Safe to re-run: already-applied migrations are skipped. Never seeds demo data.
-echo "Running migrations..."
-php artisan migrate --force
-echo "Migrations OK."
-
-# Optional first admin (set ADMIN_EMAIL + ADMIN_PASSWORD on Render once, then remove password).
-if [ -n "${ADMIN_EMAIL:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ]; then
-  php -r '
-require "vendor/autoload.php";
-$app = require "bootstrap/app.php";
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-$email = getenv("ADMIN_EMAIL") ?: "";
-$password = getenv("ADMIN_PASSWORD") ?: "";
-$name = getenv("ADMIN_NAME") ?: "Admin";
-if ($email === "" || $password === "") {
-    fwrite(STDERR, "ERROR: ADMIN_EMAIL/ADMIN_PASSWORD empty.\n");
-    exit(1);
-}
-$user = App\Models\User::query()->updateOrCreate(
-    ["email" => $email],
-    [
-        "name" => $name,
-        "password" => $password,
-        "role" => "admin",
-        "email_verified_at" => now(),
-    ],
-);
-echo "Admin ready: {$user->email}\n";
-'
-fi
 
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

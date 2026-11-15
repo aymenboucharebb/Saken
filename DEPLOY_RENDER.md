@@ -49,6 +49,7 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 | `ADMIN_EMAIL` | email admin (1er boot) |
 | `ADMIN_PASSWORD` | mot de passe admin (retirer après 1er login) |
 | `ADMIN_NAME` | optionnel (`Admin`) |
+| `SETUP_TOKEN` | secret pour `/api/setup/migrate` (retirer après setup) |
 | `SESSION_DRIVER` | `database` |
 | `CACHE_STORE` | `database` |
 | `QUEUE_CONNECTION` | `database` ou `sync` |
@@ -60,13 +61,17 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 2. Créer un **Web Service** type **Docker** pointant vers ce dépôt (racine Laravel).
 3. Attacher un **Persistent Disk** monté sur `/var/www/html/storage` (sinon les reçus disparaissent au redeploy).
 4. Configurer les variables d’environnement ci-dessus (`APP_DEBUG=false`).
-5. (Optionnel mais recommandé pour le 1er login) ajouter :
+5. (Recommandé 1er login / free sans Shell) ajouter :
    - `ADMIN_EMAIL` = votre email admin
    - `ADMIN_PASSWORD` = mot de passe fort
    - `ADMIN_NAME` = `Admin` (optionnel)
+   - `SETUP_TOKEN` = une longue chaîne aléatoire (ex. `openssl rand -hex 16`)
 6. Déployer l’image (build Docker automatique).  
-   Au boot : `php artisan migrate --force` + création admin si `ADMIN_EMAIL`/`ADMIN_PASSWORD` sont définis.  
-   **Ne PAS** lancer `db:seed` (comptes démo). Après le 1er login réussi, retirez `ADMIN_PASSWORD` des env Render.
+   Au boot : attend la DB, `migrate --force` (soft-fail), admin optionnel, puis caches.  
+   **Si la table `users` manque encore**, ouvrez **une fois** (avant `/login`) :
+   `https://<service>.onrender.com/api/setup/migrate?token=VOTRE_SETUP_TOKEN`  
+   Vous devez voir `"ok": true`, `"users_table": true`.  
+   **Ne PAS** lancer `db:seed`. Après succès : retirez `ADMIN_PASSWORD` et `SETUP_TOKEN`.
 7. Vérifier :
 
 ```bash
@@ -91,10 +96,11 @@ flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com/api
 - Crée les dossiers `storage` / `bootstrap/cache` + permissions
 - Vérifie que `APP_KEY` est présent et valide (32 octets décodés)
 - `config:clear` puis `config:cache` / `route:cache` / `view:cache` (**échoue le boot si cache KO**)
-- `php artisan migrate --force` (tables `users`, `sessions`, etc.)
+- Attend Postgres (retry), puis `php artisan migrate --force` (soft-fail + fallback HTTP)
 - Crée/maj un admin si `ADMIN_EMAIL` + `ADMIN_PASSWORD` sont définis
 - PHP-FPM avec `clear_env = no` (les variables Render sont visibles par les workers)
 - Démarre php-fpm + nginx
+- Fallback : `GET /api/setup/migrate?token=$SETUP_TOKEN` (sans session)
 
 **Ne fait pas :**
 - `db:seed` (pas de comptes démo)

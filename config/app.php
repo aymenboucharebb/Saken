@@ -99,6 +99,24 @@ return [
 
     'key' => env('APP_KEY'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | One-shot setup (Render free / no shell)
+    |--------------------------------------------------------------------------
+    |
+    | SETUP_TOKEN protects POST/GET /api/setup/migrate. Leave empty to disable.
+    | ADMIN_* are used by the Docker entrypoint and the setup endpoint.
+    |
+    */
+
+    'setup_token' => env('SETUP_TOKEN'),
+
+    'admin_email' => env('ADMIN_EMAIL'),
+
+    'admin_password' => env('ADMIN_PASSWORD'),
+
+    'admin_name' => env('ADMIN_NAME', 'Admin'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

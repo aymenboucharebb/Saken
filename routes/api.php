@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ApartmentController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContributionController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\SetupMigrateController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Auth : Bearer token Sanctum (POST /api/login)
 */
+
+// No session middleware (api) — usable even when sessions table is missing.
+Route::match(['GET', 'POST'], '/setup/migrate', SetupMigrateController::class);
 
 Route::post('/login', [AuthController::class, 'login']);
 
