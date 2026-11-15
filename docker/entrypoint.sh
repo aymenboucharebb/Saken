@@ -90,6 +90,14 @@ echo "APP_KEY OK (32 bytes, string_len=${#APP_KEY})."
 # Prefer TLS when talking to managed Postgres (Render external / some internal paths).
 export DB_SSLMODE="${DB_SSLMODE:-prefer}"
 
+# Web login sessions behind Render TLS.
+export SESSION_DRIVER="${SESSION_DRIVER:-database}"
+export SESSION_SECURE_COOKIE="${SESSION_SECURE_COOKIE:-true}"
+# Empty domain = host-only cookie (do not use the literal string "null").
+if [ "${SESSION_DOMAIN:-}" = "null" ]; then
+  export SESSION_DOMAIN=
+fi
+
 # Clear any stale caches before migrate so env() / config read live Render vars.
 php artisan config:clear || true
 php artisan route:clear || true

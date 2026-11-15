@@ -51,6 +51,8 @@ Renseigner dans le dashboard Render (ne jamais committer de secrets) :
 | `ADMIN_NAME` | optionnel (`Admin`) |
 | `SETUP_TOKEN` | secret pour `/api/setup/migrate` (retirer après setup) |
 | `SESSION_DRIVER` | `database` |
+| `SESSION_SECURE_COOKIE` | `true` |
+| `SESSION_DOMAIN` | *(vide — ne pas mettre `null`)* |
 | `CACHE_STORE` | `database` |
 | `QUEUE_CONNECTION` | `database` ou `sync` |
 | `FILESYSTEM_DISK` | `local` |

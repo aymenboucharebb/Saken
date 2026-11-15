@@ -26,6 +26,20 @@ class AppServiceProvider extends ServiceProvider
         // Ensure Vite/asset URLs stay HTTPS when APP_URL is https (Render TLS termination).
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
+            URL::forceRootUrl(rtrim((string) config('app.url'), '/'));
+
+            // Session cookies must be Secure on HTTPS or browsers / proxies drop them
+            // → login appears to "redirect back to login" with no error.
+            $domain = config('session.domain');
+            if ($domain === 'null' || $domain === '') {
+                $domain = null;
+            }
+
+            config([
+                'session.secure' => true,
+                'session.same_site' => config('session.same_site') ?: 'lax',
+                'session.domain' => $domain,
+            ]);
         }
 
         Scramble::configure()
