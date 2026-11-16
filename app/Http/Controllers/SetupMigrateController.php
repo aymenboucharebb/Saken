@@ -46,9 +46,18 @@ class SetupMigrateController extends Controller
                 $adminEmail = $admin->email;
             }
 
+            $seedOutput = null;
+            $shouldSeed = $request->boolean('seed');
+
+            if ($shouldSeed) {
+                Artisan::call('db:seed', ['--force' => true]);
+                $seedOutput = trim(Artisan::output());
+            }
+
             return response()->json([
                 'ok' => true,
                 'migrate' => $migrateOutput,
+                'seed' => $seedOutput,
                 'users_table' => Schema::hasTable('users'),
                 'sessions_table' => Schema::hasTable('sessions'),
                 'admin' => $adminEmail,
